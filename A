@@ -1179,6 +1179,140 @@ root.mainloop()
 
 
 
+updates calci
+
+
+import tkinter as tk
+
+
+class KeyPad(tk.Canvas):
+    def __init__(self, root):
+        super().__init__(master=root, background=root.cget("background"), highlightthickness=0, height=380)
+
+        upper_text = ("C", "+/-", "%")
+        operators = ("/", "x", "-", "+", "=")
+        keypad_text = (
+            7, 8, 9,
+            4, 5, 6,
+            1, 2, 3,
+            0, "", "."
+        )
+
+        # Create the buttons
+        for row in range(5):
+            for col in range(4):
+                x, y = 20 + 75 * col, 75 * row
+                if row == 0 and col < 3:
+                    button_bg = "#D0CECE"  # Light grey for top row buttons
+                    button_text = upper_text[col]
+                elif col == 3:
+                    button_bg = "#FFC000"  # Yellow for operator buttons
+                    button_text = operators[row]
+                else:
+                    button_bg = "#262626"  # Black for number buttons
+                    button_text = keypad_text[(row - 1) * 3 + col] if (row - 1) * 3 + col < len(keypad_text) else ""
+
+                # Skip empty button (for "")
+                if button_text != "":
+                    if button_text == 0:
+                        # Special case for "0" to make it wider
+                        arc1 = self.create_arc(x, y, x + 60, y + 60, start=90, extent=180, fill=button_bg,
+                                               outline=button_bg)
+                        arc2 = self.create_arc(x + 75, y, x + 135, y + 60, start=-90, extent=180, fill=button_bg,
+                                               outline=button_bg)
+                        button = self.create_rectangle(x + 30, y, x + 105, y + 60.5, fill=button_bg, width=0)
+                    else:
+                        button = self.create_oval(x, y, x + 60, y + 60, fill=button_bg, width=0)
+
+                    text_color = "black" if button_bg == "#D0CECE" else "white"
+                    text = self.create_text(x + 30, y + 30, text=button_text, fill=text_color, font=("Arial", 20))
+                    self.hoverColor(button, button_bg)
+                    self.hoverColor(text, button_bg)
+
+                    # Bind button click event to keyPress method
+                    self.tag_bind(button, "<Button-1>", lambda event, text=button_text: self.keyPress(text))
+                    self.tag_bind(text, "<Button-1>", lambda event, text=button_text: self.keyPress(text))
+
+    def hoverColor(self, item, color):
+
+         """Handles hover effects to change button color on mouse hover."""
+    #     hover_color = "#D0CECE" if color == "#D0CECE" else "#FFD966" if color == "#FFC000" else "#262626"
+
+        # # Change color on mouse enter
+        # self.tag_bind(item, "<Enter>", lambda event: self.itemconfigure(item, fill=hover_color))
+
+        # # Revert back to the original color on mouse leave
+        # self.tag_bind(item, "<Leave>", lambda event: self.itemconfigure(item, fill=color))
+
+    def keyPress(self, text):
+        """Handles key press events with immediate visual feedback on button press."""
+        # Perform the operation associated with the button immediately
+        if text == "C":
+            calculator_screen.configure(text="0", font=("Arial", 40))
+        elif text == "+/-":
+            current_text = calculator_screen.cget("text")
+            if current_text != "0":
+                calculator_screen.configure(text=str(-float(current_text)))
+        elif text == "=":
+            calculator_screen.equate()
+        else:
+            calculator_screen.appendText(str(text))
+
+        # Adjust font size if text is too long
+        if calculator_screen.winfo_reqwidth() > 325:
+            calculator_screen["font"] = ("Arial", int(calculator_screen.cget("font")[-2:]) - 3)
+
+
+class CalculatorScreen(tk.Message):
+    def __init__(self, root):
+        super().__init__(master=root, text="0", background=root.cget("background"), foreground="white", width=325,
+                         font=("Arial", 40), anchor="e", pady=0, padx=34)
+
+    def appendText(self, text):
+        """Appends text to the current screen."""
+        operators = ("/", "x", "-", "+", "=")
+        eqn = self.cget("text")
+        if eqn == "0":
+            self["text"] = text
+        elif text in operators and eqn[-1:] in operators:
+            self["text"] = f"{eqn[:-1]}{text}"
+        else:
+            self["text"] += text
+
+    def equate(self):
+        """Evaluates the mathematical expression."""
+        try:
+            # Replace 'x' with '*' and '%' with multiplication by 1/100
+            eqn = self.cget("text").replace("x", "*").replace("%", "*(1/100)")
+            ans = eval(eqn)
+            self["text"] = str(ans)
+            self["font"] = ("Arial", 40)
+        except:
+            self["text"] = "Error"
+
+
+root = tk.Tk()
+root.title("Calculator")
+root.geometry("325x550")
+root.resizable(False, False)
+root.configure(background="#202020")
+
+# Create keypad and screen
+keypad = KeyPad(root)
+keypad.pack(fill="both", side="bottom", pady=(15, 0))
+
+calculator_screen = CalculatorScreen(root)
+calculator_screen.pack(fill="x", side="bottom")
+
+root.mainloop()
+
+
+
+
+
+
+
+
 
 
 

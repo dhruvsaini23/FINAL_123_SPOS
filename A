@@ -1,0 +1,1218 @@
+2) Pass 1 pass 2 macroprocessor
+package mysposprograms;
+/******************************************************************************
+
+Design Suitable data structure and implements Pass-I and Pass-II of a two pass macro processor. The output of Pass-I
+(MNT,MDT and Intermediate code file without any macro definitions) should be input for Pass-II.
+
+*******************************************************************************/
+import java.io.*;
+
+class MDT {
+    String value;                       //Store Macro Definition
+
+    MDT(String value) {
+        this.value = value;
+    }
+}
+
+class MNT {
+    String macName;                    //To Store The Macro Name
+    int mdtc;                          //Macro Definition Table Counter
+
+    MNT(String macName, int mdtc) {
+        this.macName = macName;
+        this.mdtc = mdtc;
+    }
+}
+
+class ArgList {                         //Keeps track of arguments passed to Macro
+    String formalParam;
+
+    ArgList(String formalParam) {
+        this.formalParam = formalParam;
+    }
+
+    public static void main(String[] args) {
+        BufferedReader br1 = null;
+        BufferedWriter bw1 = null;
+        try {
+            br1 = new BufferedReader(new FileReader("input.txt"));
+            bw1 = new BufferedWriter(new FileWriter("Output1.txt"));
+
+            // Define fixed sizes for arrays
+            int maxSize = 100; // Assuming a maximum of 100 entries for simplicity
+
+            //Initialisation of arrays
+            MDT[] mdtArray = new MDT[maxSize];
+            MNT[] mntArray = new MNT[maxSize];
+            ArgList[] argArray = new ArgList[maxSize];
+
+            String line;
+            boolean macroStart = false, macroEnd = false, fillArgList = false;
+            int mdtCnt = 0, mntCnt = 0, argListCnt = 0;         //Points to the next location where values should be stored
+
+            while ((line = br1.readLine()) != null) {
+                line = line.replaceAll(",", " ");
+                String[] tokens = line.split("\\s+");
+                MDT currentMDT = new MDT("");
+
+                for (int i = 0; i < tokens.length; i++) {
+                    if (tokens[i].equalsIgnoreCase("MEND")) {
+                        currentMDT.value += "\t" + tokens[i];
+                        mdtArray[mdtCnt] = currentMDT;
+                        macroEnd = true;
+                        mdtCnt++;
+                    } 
+                    else if (tokens[i].equalsIgnoreCase("MACRO")) {
+                        macroStart = true;
+                        macroEnd = false;
+                    } 
+                    else if (!macroEnd) {
+                        if (macroStart) {                                        //True if it's start of macro
+                            mntArray[mntCnt] = new MNT(tokens[i], mdtCnt);       //Passing macro name and index as arguments
+                            mntCnt++;
+                            macroStart = false;
+                            fillArgList = true;
+                        } 
+                        else if (fillArgList) {
+                            while (i < tokens.length) {
+                                currentMDT.value += "\t" + tokens[i];
+                                if (tokens[i].matches("&[a-zA-Z]+") || tokens[i].matches("&[a-zA-Z]+[0-9]+")) {
+                                    argArray[argListCnt] = new ArgList(tokens[i]);
+                                    argListCnt++;
+                                }
+                                i++;
+                            }
+                            fillArgList = false;
+                        } else {
+                            if (tokens[i].equalsIgnoreCase("START") || tokens[i].matches("[0-9]+")) {
+                                continue;
+                            }
+
+                            if (tokens[i].matches("[a-zA-Z]+") || tokens[i].matches("[a-zA-Z]+[0-9]+") || tokens[i].matches("[0-9]+")) {
+                                currentMDT.value += "\t" + tokens[i];
+                            }
+                            if (tokens[i].matches("&[a-zA-Z]+") || tokens[i].matches("&[a-zA-Z]+[0-9]+")) {
+                                for (int j = 0; j < argListCnt; j++) {
+                                    if (tokens[i].equals(argArray[j].formalParam)) {
+                                        currentMDT.value += "\t&" + (j + 1);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        bw1.write(tokens[i] + "\t"+"\n");
+                    }
+                }
+                if (!currentMDT.value.isEmpty() && !macroEnd) {
+                    mdtArray[mdtCnt] = currentMDT;
+                    mdtCnt++;
+                }
+            }
+
+            // Close the input file
+            br1.close();
+
+            // Output MNT
+            bw1.close();
+            bw1 = new BufferedWriter(new FileWriter("MNT.txt"));
+            System.out.println("\n\t********MACRO NAME TABLE**********");
+            System.out.println("\n\tINDEX\tNAME\tMDTC");
+            for (int i = 0; i < mntCnt; i++) {
+                System.out.println("\t" + i + "\t" + mntArray[i].macName + "\t" + mntArray[i].mdtc);
+                bw1.write("\t" + i + "\t" + mntArray[i].macName + "\t" + mntArray[i].mdtc + "\n");
+            }
+            bw1.close();
+
+            // Output ARGUMENT LIST
+            bw1 = new BufferedWriter(new FileWriter("ARG.txt"));
+            System.out.println("\n\n\t********ARGUMENT LIST**********");
+            System.out.println("\n\tINDEX\tNAME");
+            for (int i = 0; i < argListCnt; i++) {
+                System.out.println("\t" + i + "\t" + argArray[i].formalParam);
+                bw1.write("\t" + i + "\t" + argArray[i].formalParam + "\n");
+            }
+            bw1.close();
+
+            // Output MDT
+            bw1 = new BufferedWriter(new FileWriter("MDT.txt"));
+            System.out.println("\n\t********MACRO DEFINITION TABLE**********");
+            System.out.println("\n\tINDEX\t\tSTATEMENT");
+            for (int i = 0; i < mdtCnt; i++) {
+                System.out.println("\t" + i + "\t" + mdtArray[i].value);
+                bw1.write("\t" + i + "\t" +mdtArray[i].value + "\n");
+            }
+            bw1.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (br1 != null) br1.close();
+                if (bw1 != null) bw1.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+
+3) Cpu scheduling
+- FCFS
+- SJF
+- PRIORITY
+- ROUND ROBIN
+
+import java.util.*;
+
+public class Process {
+    int id, arrivalTime, burstTime, remainingTime, priority, waitingTime, turnaroundTime, completionTime;
+
+    public Process(int id, int arrivalTime, int burstTime, int priority) {
+        this.id = id;
+        this.arrivalTime = arrivalTime;
+        this.burstTime = burstTime;
+        this.remainingTime = burstTime;
+        this.priority = priority;
+    }
+}
+
+
+import java.util.*;
+import java.util.Arrays;
+public class Scheduling extends Process {
+
+    public Scheduling(int id, int arrivalTime, int burstTime, int priority) {
+		super(id, arrivalTime, burstTime, priority);
+		// TODO Auto-generated constructor stub
+	}
+
+	public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        // Input the number of processes
+        System.out.print("Enter number of processes: ");
+        int n = sc.nextInt();
+        
+        Process[] processes = new Process[n];
+        for (int i = 0; i < n; i++) {
+            System.out.println("Enter arrival time, burst time and priority (for Priority Scheduling) for Process " + (i + 1) + ": ");
+            int arrivalTime = sc.nextInt();
+            int burstTime = sc.nextInt();
+            int priority = sc.nextInt();
+            processes[i] = new Process(i + 1, arrivalTime, burstTime, priority);
+        }
+
+        // Menu for scheduling algorithms
+        System.out.println("Choose a CPU Scheduling Algorithm:");
+        System.out.println("1. FCFS\n2. SJF (Preemptive)\n3. Priority (Non-preemptive)\n4. Round Robin (Preemptive)");
+        System.out.print("Enter your choice: ");
+        int choice = sc.nextInt();
+
+        switch (choice) {
+            case 1:
+                FCFS(processes);
+                break;
+            case 2:
+                SJFPreemptive(processes);
+                break;
+            case 3:
+                PriorityNonPreemptive(processes);
+                break;
+            case 4:
+                System.out.print("Enter time quantum for Round Robin: ");
+                int quantum = sc.nextInt();
+                RoundRobin(processes, quantum);
+                break;
+            default:
+                System.out.println("Invalid choice.");
+                break;
+        }
+
+        sc.close();
+    }
+
+    // First Come First Serve (FCFS)
+    public static void FCFS(Process[] processes) {
+        int currentTime = 0;
+        Arrays.sort(processes, Comparator.comparingInt(p -> p.arrivalTime));
+        for (Process p : processes) {
+            if (currentTime < p.arrivalTime) {
+                currentTime = p.arrivalTime;
+            }
+            p.waitingTime = currentTime - p.arrivalTime;
+            currentTime += p.burstTime;
+            p.turnaroundTime = p.waitingTime + p.burstTime;
+            p.completionTime = currentTime;
+        }
+        printResults(processes, "FCFS");
+    }
+
+    // Shortest Job First (Preemptive)
+    public static void SJFPreemptive(Process[] processes) {
+        int currentTime = 0, completed = 0;
+        Process current = null;
+        Arrays.sort(processes, Comparator.comparingInt(p -> p.arrivalTime));
+        PriorityQueue<Process> pq = new PriorityQueue<>(Comparator.comparingInt(p -> p.remainingTime));
+
+        while (completed < processes.length) {
+            for (Process p : processes) {
+                if (p.arrivalTime <= currentTime && p.remainingTime > 0) {
+                    pq.add(p);
+                }
+            }
+
+            if (!pq.isEmpty()) {
+                current = pq.poll();
+                current.remainingTime--;
+                currentTime++;
+
+                if (current.remainingTime == 0) {
+                    completed++;
+                    current.completionTime = currentTime;
+                    current.turnaroundTime = current.completionTime - current.arrivalTime;
+                    current.waitingTime = current.turnaroundTime - current.burstTime;
+                }
+            } else {
+                currentTime++;
+            }
+        }
+
+        printResults(processes, "SJF (Preemptive)");
+    }
+
+    // Priority Scheduling (Non-preemptive)
+    public static void PriorityNonPreemptive(Process[] processes) {
+        int currentTime = 0, completed = 0;
+        Process current = null;
+        Arrays.sort(processes, Comparator.comparingInt(p -> p.arrivalTime));
+        PriorityQueue<Process> pq = new PriorityQueue<>(Comparator.comparingInt(p -> p.priority));
+
+        while (completed < processes.length) {
+            for (Process p : processes) {
+                if (p.arrivalTime <= currentTime && p.remainingTime > 0) {
+                    pq.add(p);
+                }
+            }
+
+            if (!pq.isEmpty()) {
+                current = pq.poll();
+                current.waitingTime = currentTime - current.arrivalTime;
+                currentTime += current.burstTime;
+                current.turnaroundTime = current.waitingTime + current.burstTime;
+                current.completionTime = currentTime;
+                current.remainingTime = 0;
+                completed++;
+            } else {
+                currentTime++;
+            }
+        }
+
+        printResults(processes, "Priority (Non-preemptive)");
+    }
+
+    // Round Robin (Preemptive)
+    public static void RoundRobin(Process[] processes, int quantum) {
+        int currentTime = 0, completed = 0;
+        Queue<Process> queue = new LinkedList<>();
+        Arrays.sort(processes, Comparator.comparingInt(p -> p.arrivalTime));
+        
+        int i = 0;
+        while (completed < processes.length) {
+            while (i < processes.length && processes[i].arrivalTime <= currentTime) {
+                queue.add(processes[i]);
+                i++;
+            }
+
+            if (!queue.isEmpty()) {
+                Process current = queue.poll();
+                int execTime = Math.min(current.remainingTime, quantum);
+                current.remainingTime -= execTime;
+                currentTime += execTime;
+
+                if (current.remainingTime == 0) {
+                    completed++;
+                    current.completionTime = currentTime;
+                    current.turnaroundTime = current.completionTime - current.arrivalTime;
+                    current.waitingTime = current.turnaroundTime - current.burstTime;
+                } else {
+                    queue.add(current);
+                }
+            } else {
+                currentTime++;
+            }
+        }
+
+        printResults(processes, "Round Robin");
+    }
+
+    // Helper method to print the results
+    public static void printResults(Process[] processes, String algorithm) {
+        System.out.println("\n" + algorithm + " Scheduling Results:");
+        System.out.println("Process ID\tArrival Time\tBurst Time\tPriority\tCompletion Time\tTurnaround Time\tWaiting Time");
+        double totalWaitingTime = 0, totalTurnaroundTime = 0;
+        for (Process p : processes) {
+            totalWaitingTime += p.waitingTime;
+            totalTurnaroundTime += p.turnaroundTime;
+            System.out.println(p.id + "\t\t" + p.arrivalTime + "\t\t" + p.burstTime + "\t\t" + p.priority + "\t\t" +
+                    p.completionTime + "\t\t" + p.turnaroundTime + "\t\t" + p.waitingTime);
+        }
+        System.out.println("Average Waiting Time: " + (totalWaitingTime / processes.length));
+        System.out.println("Average Turnaround Time: " + (totalTurnaroundTime / processes.length));
+    }
+}
+
+4) Memory Placement
+- Best Fit
+- First Fit
+- Next Fit
+- Worst Fi
+
+
+
+
+package mysposprograms;
+import java.util.Arrays;
+import java.util.Scanner;
+//Memory Management
+public class Main {
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        // Display menu for memory allocation algorithms
+        System.out.println("Select memory allocation algorithm:");
+        System.out.println("1. First Fit\n2. Best Fit\n3. Worst Fit\n4. Next Fit");
+        System.out.print("Enter your choice: ");
+        int choice = scanner.nextInt();
+
+        // Input number of memory blocks and their capacities
+        System.out.print("Enter the Number of Memory Blocks: ");
+        int blockNo = scanner.nextInt();
+        int[] blocks = new int[blockNo];
+        for (int i = 0; i < blockNo; i++) {
+            System.out.print("Enter memory capacity of B" + (i + 1) + ": ");
+            blocks[i] = scanner.nextInt();
+        }
+
+        // Input number of processes and their memory requirements
+        System.out.print("Enter the Number of Processes: ");
+        int processNo = scanner.nextInt();
+        int[] processes = new int[processNo];
+        for (int i = 0; i < processNo; i++) {
+            System.out.print("Enter memory required for Process " + (i + 1) + ": ");
+            processes[i] = scanner.nextInt();
+        }
+
+        // Array to store which process is allocated to which block (-1 indicates no allocation)
+        int[] display = new int[blockNo];
+        Arrays.fill(display, -1);
+
+        // Switch case to handle the selected memory allocation strategy
+        switch (choice) {
+            case 1 :
+                allocateMemory(processes, blocks, display, "First Fit");
+            case 2 : 
+                allocateMemory(processes, blocks, display, "Best Fit");
+            case 3 : 
+                allocateMemory(processes, blocks, display, "Worst Fit");
+            case 4 :
+                nextFitAllocation(processes, blocks, display);  // Next Fit has a separate method
+            default : 
+                System.out.println("Invalid choice. Exiting program.");
+        }
+        scanner.close();
+    }
+
+    // Method to allocate memory based on the chosen strategy (First, Best, or Worst Fit)
+    private static void allocateMemory(int[] processes, int[] blocks, int[] display, String strategy) {
+        int blockNo = blocks.length, sum = 0, total = Arrays.stream(blocks).sum(); // Total memory sum calculation
+        boolean[] flag = new boolean[blockNo]; // Flag to check if a block is already allocated
+
+        int idx=0;
+        
+        for (int i = 0; i < processes.length; i++) {
+            switch (strategy) {
+                case "First Fit" :
+                    findBlockFirstFit(blocks, flag, processes[i]);
+                case "Best Fit" :
+                    findBlockBestFit(blocks, flag, processes[i]);
+                case "Worst Fit" :
+                    findBlockWorstFit(blocks, flag, processes[i]);
+               
+            };
+            if (idx != -1) {
+                flag[idx] = true; // Mark block as allocated
+                sum += processes[i]; // Add process memory to sum
+                display[idx] = i; // Store allocated process index in the display array
+            }
+        }
+        printAllocation(display, blocks, sum, total); // Print allocation and efficiency
+    }
+
+    // First Fit: Find the first block that can fit the process
+    private static int findBlockFirstFit(int[] blocks, boolean[] flag, int size) {
+        for (int j = 0; j < blocks.length; j++)
+            if (!flag[j] && blocks[j] >= size) return j; // Return the first available block index
+        return -1; // Return -1 if no suitable block found
+    }
+
+    // Best Fit: Find the smallest block that can fit the process
+    private static int findBlockBestFit(int[] blocks, boolean[] flag, int size) {
+        int idx = -1;
+        for (int j = 0; j < blocks.length; j++)
+            if (!flag[j] && blocks[j] >= size && (idx == -1 || blocks[j] < blocks[idx])) idx = j; // Choose the smallest available block
+        return idx;
+    }
+
+    // Worst Fit: Find the largest block that can fit the process
+    private static int findBlockWorstFit(int[] blocks, boolean[] flag, int size) {
+        int idx = -1;
+        for (int j = 0; j < blocks.length; j++)
+            if (!flag[j] && blocks[j] >= size && (idx == -1 || blocks[j] > blocks[idx])) idx = j; // Choose the largest available block
+        return idx;
+    }
+
+    // Next Fit: Allocate memory sequentially, starting from where the last allocation ended
+    private static void nextFitAllocation(int[] processes, int[] blocks, int[] display) {
+        int total = Arrays.stream(blocks).sum(), sum = 0, idx = 0; // Initialize sum and start index
+        boolean[] flag = new boolean[blocks.length]; // To track allocated blocks
+
+        for (int i = 0;i<processes.length;i++) {
+            boolean allocated = false; // Track if process is allocated
+            for (int j = 0; j < blocks.length; j++) { // Loop through blocks starting from last index
+                int blockIdx = (idx + j) % blocks.length; // Wrap around using modulus operator
+                if (!flag[blockIdx] && blocks[blockIdx] >= processes[i]) {
+                    sum += processes[i]; // Add process memory to sum
+                    blocks[blockIdx] -= processes[i]; // Reduce block size
+                    display[blockIdx] = i; // Store allocated process
+                    flag[blockIdx] = true; // Mark block as allocated
+                    idx = (blockIdx + 1) % blocks.length; // Update the last allocated block index
+                    allocated = true;
+                    break;
+                }
+            }
+            if (!allocated) {
+                System.out.println("No suitable block found for process with size: " + processes[i]);
+            }
+        }
+        printAllocation(display, blocks, sum, total); // Print allocation and efficiency
+    }
+
+    // Print the final allocation and calculate the efficiency
+    private static void printAllocation(int[] display, int[] blocks, int sum, int total) {
+        System.out.println("\nProcess Allocation in Blocks:");
+        for (int i = 0; i < display.length; i++) {
+            System.out.println("B" + (i + 1) + "\t" + (display[i] == -1 ? "0" : "P" + (display[i] + 1))); // Print allocated processes
+        }
+        System.out.println("\nEfficiency: " + (sum * 100.0) / total + "%"); // Print efficiency as a percentage
+    }
+}
+
+
+
+5) Paging Simulation
+- FIFO
+- LRU
+- OPTIMAL
+
+
+import java.util.*;
+
+public class PageReplacement {
+
+    private static Scanner sc = new Scanner(System.in);
+
+    static abstract class CommonUtils {
+        protected int[][] result;
+        protected LinkedList<Integer> pagesReference;
+        protected int hits;
+        protected int faults;
+
+        public CommonUtils(){
+            hits = faults = 0;
+            pagesReference = new LinkedList<>();
+            System.out.print("Enter the no.of numbers in the page reference string: ");
+            int prs = sc.nextInt();
+            for(int x = 0; x < prs; x++){
+                System.out.print("Enter the number: ");
+                int n = sc.nextInt();
+                pagesReference.add(n);
+            }
+            System.out.print("Enter the no.of frames: ");
+            int f = sc.nextInt();
+            result = new int[f][prs];
+            for(int x = 0; x < result.length; x++){
+                for(int y= 0; y < result[0].length; y++){
+                    result[x][y] = -1;
+                }
+            }
+        }
+
+        public abstract void performAlgorithm();
+
+        public void showResult(){
+            for(int x = 0; x < result.length; x++){
+                for(int y = 0; y < result[0].length; y++){
+                    System.out.print(result[x][y] + " ");
+                }
+                System.out.println();
+            }
+            System.out.println("No.of hits: " + hits);
+            System.out.println("No.of faults: " + faults);
+        }
+    }
+
+    static class FIFO extends CommonUtils {
+        private Queue<Integer> numQueue;
+
+        public FIFO(){
+            numQueue = new LinkedList<>();
+        }
+
+        public void performAlgorithm(){
+            int j = 0;
+            while(!pagesReference.isEmpty()){
+                int num = pagesReference.removeFirst();
+                boolean isFault = true;
+                boolean isInserted = false;
+                for(int x = 0; x < result.length; x++){
+                    if(result[x][j] == -1){
+                        isFault = true;
+                        faults++;
+                        result[x][j] = num;
+                        isInserted = true;
+                        break;
+                    }
+                    else if(result[x][j] == num){
+                        isFault = false;
+                        hits++;
+                        break;
+                    }
+                }
+                if(isFault && isInserted){
+                    numQueue.add(num);
+                }
+                else if(isFault){
+                    faults++;
+                    numQueue.add(num);
+                    int n = numQueue.remove();
+                    for(int x = 0; x < result.length; x++){
+                        if(result[x][j] == n){
+                            result[x][j] = num;
+                            break;
+                        }
+                    }
+                }
+                j++;
+                if(j < result[0].length) {
+                    for (int x = 0; x < result.length; x++) {
+                        result[x][j] = result[x][j-1];
+                    }
+                }
+            }
+        }
+    }
+
+    static class LRU extends CommonUtils {
+        private Deque<Integer> pageSequenceRecord;
+
+        public LRU(){
+            pageSequenceRecord = new LinkedList<>();
+        }
+
+
+        @Override
+        public void performAlgorithm() {
+            int j = 0;
+            while(!pagesReference.isEmpty()){
+                int num = pagesReference.remove();
+                boolean isFault = true;
+                boolean isInserted = false;
+                for(int x = 0; x < result.length; x++){
+                    if(result[x][j] == -1){
+                        isFault = true;
+                        faults++;
+                        result[x][j] = num;
+                        isInserted = true;
+                        break;
+                    }
+                    else if(result[x][j] == num){
+                        isFault = false;
+                        hits++;
+                        break;
+                    }
+                }
+                if(isFault && isInserted){
+                    pageSequenceRecord.addLast(num);
+                }
+                else if(!isFault){
+                    pageSequenceRecord.remove(num);
+                    pageSequenceRecord.addLast(num);
+                }
+                else {       // isFault and !isInserted.
+                    int n = pageSequenceRecord.removeFirst();
+                    for(int x = 0; x < result.length; x++){
+                        if(result[x][j] == n){
+                            result[x][j] = num;
+                            break;
+                        }
+                    }
+                    pageSequenceRecord.addLast(num);
+                    faults++;
+                }
+                j++;
+                if(j < result[0].length) {
+                    for (int x = 0; x < result.length; x++) {
+                        result[x][j] = result[x][j-1];
+                    }
+                }
+            }
+        }
+    }
+
+    static class OPT extends CommonUtils {
+
+        @Override
+        public void performAlgorithm() {
+            int j = 0;
+            while(!pagesReference.isEmpty()) {
+                int num = pagesReference.remove();
+                boolean isFault = true;
+                boolean isInserted = false;
+                for (int x = 0; x < result.length; x++) {
+                    if (result[x][j] == -1) {
+                        isFault = true;
+                        faults++;
+                        result[x][j] = num;
+                        isInserted = true;
+                        break;
+                    } else if (result[x][j] == num) {
+                        isFault = false;
+                        hits++;
+                        break;
+                    }
+                }
+                if (isFault && !isInserted) {
+                    int maxPageRefEleIdx = -1;
+                    int resultEleIdx = -1;
+                    for (int x = 0; x < result.length; x++) {
+                        int ele = result[x][j];
+                         if(!pagesReference.contains(ele)){
+                             result[x][j] = num;
+                             break;
+                         }
+                         else{
+                             int i = pagesReference.indexOf(ele);
+                             if(maxPageRefEleIdx <= i){
+                                 maxPageRefEleIdx = i;
+                                 resultEleIdx = x;
+                             }
+                        }
+                    }
+                    if(resultEleIdx != -1){
+                        result[resultEleIdx][j] = num;
+                    }
+                    faults++;
+                }
+                j++;
+                if (j < result[0].length) {
+                    for (int x = 0; x < result.length; x++) {
+                        result[x][j] = result[x][j - 1];
+                    }
+                }
+            }
+        }
+    }
+
+    public static void main(String[] args){
+
+        System.out.println("*********************************** FIFO *******************************************");
+        FIFO f = new FIFO();
+        f.performAlgorithm();
+        f.showResult();
+
+        System.out.println("*********************************** LRU *******************************************");
+        LRU l = new LRU();
+        l.performAlgorithm();
+        l.showResult();
+
+        System.out.println("*********************************** OPT *******************************************");
+        OPT o = new OPT();
+        o.performAlgorithm();
+        o.showResult();
+
+    }
+
+}
+
+
+
+
+Calculator 
+
+
+import tkinter as tk
+
+class KeyPad(tk.Canvas):
+    def __init__(self,root):
+        super().__init__(master=root,background=root.cget("background"),highlightthickness=0,height=380)
+        upper_text = ("C","+/-","%")
+        operators = ("/","x","-","+","=")
+        keypad_text = (
+            7, 8, 9,
+            4, 5, 6,
+            1, 2, 3,
+            0, "", "."
+        )
+        for row in range(5):
+            for col in range(4):
+                x,y = 20 + 75*col, 75*row
+                if row==0 and col<3:
+                    button_bg = "#D0CECE"
+                    button_text = upper_text[col]
+                elif col==3:
+                    button_bg = "#FFC000"
+                    button_text = operators[row]
+                else:
+                    button_bg = "#262626"
+                    button_text = keypad_text[(row-1)*3 + col]
+                if not button_text in (0, ""):
+                    button = self.create_oval(x,y,x+60,y+60,fill=button_bg,width=0)
+                elif button_text == 0:
+                    arc1 = self.create_arc(x,y,x+60,y+60,start = 90, extent = 180, fill = button_bg, outline = button_bg)
+                    arc2 = self.create_arc(x+75,y,x+135,y+60,start = -90, extent = 180, fill = button_bg, outline = button_bg)
+                    button = self.create_rectangle(x+30,y,x+105,y+60.5,fill=button_bg, width=0)
+                text_color = "black" if button_bg == "#D0CECE" else "white"
+                text = self.create_text(x+30,y+30, text = button_text,fill=text_color,font=("Arial",20))
+                self.hoverColor(button, button, button_bg)
+                self.hoverColor(text, button, button_bg)
+                button_text = 0 if button_text == "" else button_text
+                self.tag_bind(button,"<Button-1>", lambda event, text=button_text: self.keyPress(text))
+                self.tag_bind(text, "<Button-1>", lambda event, text=button_text: self.keyPress(text))
+                
+    def hoverColor(self, item, button, color):
+        if color == "#D0CECE": hover_color = "#E7E6E6"
+        elif color == "#FFC000": hover_color = "#FFD966"
+        elif color == "#262626": hover_color = "#595959"
+        else: hover_color = "white"
+        self.tag_bind(item, "<Enter>", lambda event: self.itemconfigure(button, fill=hover_color))
+        self.tag_bind(item, "<Leave>", lambda event: self.itemconfigure(button, fill=color))
+        
+    def keyPress(self,text):
+        if text=="C": calculator_screen.configure(text=0, font=("Arial",40))
+        elif text=="+/-": calculator_screen["text"] = -int(calculator_screen.cget("text"))
+        elif text=="=": calculator_screen.equate()
+        else: calculator_screen.appendText(str(text))
+        
+        if calculator_screen.winfo_reqwidth() > 325:
+            calculator_screen["font"] = ("Arial", int(calculator_screen.cget("font")[-2:]) - 3)
+        
+class CalculatorScreen(tk.Message):
+    def __init__(self, root):
+        super().__init__(master=root,text=0,background=root.cget("background"),foreground="white",width=325,font=("arial",40),anchor="e",pady=0,padx=34)
+        
+    def appendText(self,text):
+        operators = ("/","x","-","+","=")
+        eqn = self.cget("text")
+        if eqn == "0": self["text"] = text
+        elif text in operators and eqn[-1:] in operators : self["text"] = f"{eqn[:-1]}{text}"
+        else: self["text"] += text
+    
+    def equate(self):
+        try:
+            ans = eval(self.cget("text").replace("x","*").replace("%","*(1/100)"))
+            self["text"] = ans
+            self["font"] = ("Arial", 40)
+        except:
+            pass    
+
+root = tk.Tk()
+root.title("Calculator")
+root.geometry("325x550")
+root.resizable(False, False)
+root.configure(background = "#202020")
+
+keypad = KeyPad(root)
+keypad.pack(fill="both",side="bottom",pady=(15,0))
+
+calculator_screen = CalculatorScreen(root)
+calculator_screen.pack(fill="x",side="bottom")
+
+root.mainloop()
+
+
+#Color Match Game
+
+
+
+import tkinter as tk
+import tkinter.messagebox
+import random
+
+class ColorMatchGame:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Color Match Game")
+        self.score = 0
+        self.wrong_attempts = 0
+        self.colors = ["red", "green", "blue", "yellow", "purple", "orange"]
+        
+        self.label = tk.Label(self.master, text="Match the color:")
+        self.label.pack()
+        
+        self.score_label = tk.Label(self.master, text=f"Score: {self.score}", font=("Helvetica", 14))
+        self.score_label.pack()
+        
+        self.attempts_label = tk.Label(self.master, text=f"Wrong Attempts: {self.wrong_attempts}", font=("Helvetica", 14))
+        self.attempts_label.pack()
+
+        self.match_label = tk.Label(self.master, text="", font=("Helvetica", 24))
+        self.match_label.pack()
+
+        self.color_buttons_frame = tk.Frame(self.master)
+        self.color_buttons_frame.pack()
+
+        self.color_buttons = []
+        for color in self.colors:
+            button = tk.Button(self.color_buttons_frame, text=color, bg=color, command=lambda c=color: self.check_color(c))
+            button.pack(side=tk.LEFT, padx=10, pady=10)
+            self.color_buttons.append(button)
+        
+        self.start_again_button = tk.Button(self.master, text="Start Again", command=self.start_again)
+        self.start_again_button.pack()
+
+        self.show_random_color()
+
+    def show_random_color(self):
+        random_color = random.choice(self.colors)
+        self.match_label.config(text=random_color, fg=random.choice(self.colors))
+
+    def check_color(self, selected_color):
+        current_color = self.match_label.cget("text")
+        if selected_color == current_color:
+            self.score += 1
+            self.wrong_attempts = 0
+            self.score_label.config(text=f"Score: {self.score}")
+        else:
+            self.wrong_attempts += 1
+            self.score -= 1
+            self.attempts_label.config(text=f"Wrong Attempts: {self.wrong_attempts}")
+            self.score_label.config(text=f"Score: {self.score}")
+
+            if self.wrong_attempts == 3:
+                self.game_over()
+
+        self.show_random_color()
+
+    def game_over(self):
+        for button in self.color_buttons:
+            button.config(state=tk.DISABLED)
+        self.match_label.config(text="Game Over", fg="red")
+        self.start_again_button.config(state=tk.NORMAL)
+        tkinter.messagebox.showinfo("Game Over", f"Your final score: {self.score}")
+
+    def start_again(self):
+        for button in self.color_buttons:
+            button.config(state=tk.NORMAL)
+        self.score = 0
+        self.wrong_attempts = 0
+        self.score_label.config(text=f"Score: {self.score}")
+        self.attempts_label.config(text=f"Wrong Attempts: {self.wrong_attempts}")
+        self.start_again_button.config(state=tk.DISABLED)
+        self.show_random_color()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    game = ColorMatchGame(root)
+    game.show_random_color()
+    root.mainloop()
+
+
+#Sticky Notes
+import tkinter as tk
+from tkinter import messagebox, simpledialog
+
+def save_note():
+    note_text = text_entry.get("1.0", "end-1c")
+    if note_text.strip():
+        with open("notes.txt", "a") as file:
+            file.write(note_text + "\n")
+        text_entry.delete("1.0", tk.END)
+        messagebox.showinfo("Note Saved", "Your note has been saved.")
+    else:
+        messagebox.showwarning("Empty Note", "Please enter some text before saving.")
+
+def view_notes():
+    try:
+        with open("notes.txt", "r") as file:
+            notes = file.read()
+        notes_window = tk.Toplevel(root)
+        notes_window.title("Notes")
+        notes_text = tk.Text(notes_window, bg="lightyellow", fg="blue")
+        notes_text.insert(tk.END, notes)
+        notes_text.pack()
+    except FileNotFoundError:
+        messagebox.showwarning("No Notes Found", "There are no notes to display.")
+
+def clear_notes():
+    confirmed = messagebox.askyesno("Confirm", "Are you sure you want to clear all notes?")
+    if confirmed:
+        with open("notes.txt", "w") as file:
+            file.truncate(0)
+        messagebox.showinfo("Notes Cleared", "All notes have been cleared.")
+
+def open_specific_note():
+    try:
+        with open("notes.txt", "r") as file:
+            notes = file.readlines()
+        
+        note_index = simpledialog.askinteger("Open Note", "Enter the note number you want to open:", minvalue=1, maxvalue=len(notes))
+        
+        if note_index:
+            note_index -= 1  # Adjust to 0-based index
+            note = notes[note_index]
+            notes_window = tk.Toplevel(root)
+            notes_window.title(f"Note {note_index + 1}")
+            notes_text = tk.Text(notes_window, bg="lightyellow", fg="blue")
+            notes_text.insert(tk.END, note)
+            notes_text.pack()
+    except FileNotFoundError:
+        messagebox.showwarning("No Notes Found", "There are no notes to display.")
+
+root = tk.Tk()
+root.title("Note-taking App")
+
+# Text Entry
+text_entry = tk.Text(root, height=10, width=40, bg="lightblue", fg="black")
+text_entry.pack(pady=10)
+
+# Buttons
+save_button = tk.Button(root, text="Save Note", command=save_note, bg="green", fg="white")
+view_button = tk.Button(root, text="View Notes", command=view_notes, bg="orange", fg="white")
+clear_button = tk.Button(root, text="Clear Notes", command=clear_notes, bg="red", fg="white")
+open_button = tk.Button(root, text="Open Note", command=open_specific_note, bg="purple", fg="white")
+
+save_button.pack()
+view_button.pack()
+clear_button.pack()
+open_button.pack()
+
+root.mainloop()
+
+Tic tac toe 
+
+
+import tkinter as tk
+
+# Define a class for the Tic Tac Toe game
+class TicTacToe:
+  def __init__(self, master):
+      # Initialize the game window
+      self.master = master
+      self.master.title("Tic Tac Toe")
+
+      # Keep track of the current player (either "X" or "O")
+      self.current_player = "X"
+
+      # Initialize the game board as an empty 3x3 array
+      self.board = [
+          ["", "", ""],
+          ["", "", ""],
+          ["", "", ""]
+      ]
+
+      # Create the buttons for the game board
+      self.buttons = []
+      for row in range(3):
+          button_row = []
+          for col in range(3):
+              # Each button has a command that calls the handle_click method
+              button = tk.Button(
+                  self.master,
+                  text="",
+                  font=("Helvetica", 30),
+                  width=3,
+                  height=1,
+                  command=lambda row=row, col=col: self.handle_click(row, col)
+              )
+              # Position the button in the game grid
+              button.grid(row=row, column=col, sticky="nsew")
+              button_row.append(button)
+          self.buttons.append(button_row)
+
+  def handle_click(self, row, col):
+      # Check if the clicked cell is empty
+      if self.board[row][col] == "":
+          # Update the board and the button text with the current player's symbol
+          self.board[row][col] = self.current_player
+          self.buttons[row][col].config(text=self.current_player)
+          # Check if the current player has won or the game is tied
+          if self.check_win() or self.check_tie():
+              # If so, call the game_over method
+              self.game_over()
+          else:
+              # If not, switch to the other player's turn
+              self.switch_player()
+
+  def switch_player(self):
+      # Alternate between "X" and "O" after each move
+      if self.current_player == "X":
+          self.current_player = "O"
+      else:
+          self.current_player = "X"
+
+  def check_win(self):
+      # Check if any row has three of the same symbol in a row
+      for i in range(3):
+          if self.board[i][0] == self.board[i][1] == self.board[i][2] != "":
+              return True
+      # Check if any column has three of the same symbol in a row
+          if self.board[0][i] == self.board[1][i] == self.board[2][i] != "":
+              return True
+      # Check if the diagonal from top-left to bottom-right has three of the same symbol
+      if self.board[0][0] == self.board[1][1] == self.board[2][2] != "":
+          return True
+      # Check if the diagonal from top-right to bottom-left has three of the same symbol
+      if self.board[2][0] == self.board[1][1] == self.board[0][2] != "":
+          return True
+      # If no winning combination is found, return False
+      return False
+
+  def check_tie(self):
+      # Check if all cells are filled
+      for i in range(3):
+          for j in range(3):
+              if self.board[i][j] == "":
+                  return False
+      # If all cells are filled and no one has won, the game is tied
+      return True
+
+  def game_over(self):
+      # Disable all buttons and display a message announcing the winner
+      for row in self.buttons:
+          for button in row:
+              button.config(state="disabled")
+              if self.check_win():
+                  winner = self.current_player
+                  message = f"Player {winner} wins!"
+              else:
+                  message = "It's a tie!"
+      # Create a label to display the game-over message
+      msg_label = tk.Label(self.master, text=message, font=("Helvetica", 20))
+      msg_label.grid(row=3, column=0, columnspan=3)
+  
+# Create the main window and start the game
+root = tk.Tk()
+game = TicTacToe(root)
+root.mainloop()
+
+
+#Unit Converter 1
+import tkinter as tk
+
+# Function to perform weight conversion
+def convert_weight():
+    try:
+        input_value = float(entry.get())
+        from_unit = from_units.get()
+        to_unit = to_units.get()
+
+        if from_unit == "Kilograms" and to_unit == "Pounds":
+            result = input_value * 2.20462
+        elif from_unit == "Pounds" and to_unit == "Kilograms":
+            result = input_value / 2.20462
+        elif from_unit == "Kilograms" and to_unit == "Grams":
+            result = input_value * 1000
+        elif from_unit == "Grams" and to_unit == "Kilograms":
+            result = input_value / 1000
+        elif from_unit == "Pounds" and to_unit == "Ounces":
+            result = input_value * 16
+        elif from_unit == "Ounces" and to_unit == "Pounds":
+            result = input_value / 16
+        else:
+            result = input_value
+
+        result_label.config(text=f"Result: {result} {to_unit}", fg="green")
+    except ValueError:
+        result_label.config(text="Invalid input", fg="red")
+
+# Create the main application window
+root = tk.Tk()
+root.title("Weight Converter")
+root.geometry("550x250")
+
+# Entry widget for input
+entry = tk.Entry(root, width=15, font=("Arial", 12), bg="lightyellow", fg="black")
+entry.grid(row=0, column=0, padx=10, pady=10)
+
+# Dropdown menus for unit selection
+from_units = tk.StringVar()
+from_units.set("Kilograms")
+to_units = tk.StringVar()
+to_units.set("Pounds")
+
+from_units_menu = tk.OptionMenu(root, from_units, "Kilograms", "Pounds", "Grams", "Ounces")
+to_units_menu = tk.OptionMenu(root, to_units, "Kilograms", "Pounds", "Grams", "Ounces")
+
+from_units_menu.config(font=("Arial", 12))
+to_units_menu.config(font=("Arial", 12))
+
+from_units_menu.grid(row=0, column=1, padx=10, pady=10)
+to_units_menu.grid(row=0, column=2, padx=10, pady=10)
+
+# Convert button
+convert_button = tk.Button(root, text="Convert", command=convert_weight, font=("Arial", 12), bg="blue", fg="white")
+convert_button.grid(row=0, column=3, padx=10, pady=10)
+
+# Result label
+result_label = tk.Label(root, text="Result:", font=("Arial", 14))
+result_label.grid(row=1, column=0, columnspan=4, padx=10, pady=10)
+
+# Start the application
+root.mainloop()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
